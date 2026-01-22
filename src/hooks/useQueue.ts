@@ -124,16 +124,47 @@ export function useQueue() {
 
   const completeQueue = async (id: string, script?: string) => {
     try {
-      const { error } = await supabase
+      // First update the queue item status
+      const { error: updateError } = await supabase
         .from('queue_items')
         .update({
           status: 'completed',
           completed_at: new Date().toISOString(),
-          result_script: script,
         })
         .eq('id', id);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
+
+      // If script is provided, insert it into scripts table
+      if (script && script.trim()) {
+        // Get current user's username
+        const { data: { user } } = await supabase.auth.getUser();
+        let submittedBy = 'Unknown';
+        
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('user_id', user.id)
+            .single();
+          
+          if (profile) {
+            submittedBy = profile.username;
+          }
+        }
+
+        const { error: scriptError } = await supabase
+          .from('scripts' as any)
+          .insert({
+            queue_item_id: id,
+            content: script,
+            submitted_by: submittedBy,
+            version: 1,
+          } as any);
+
+        if (scriptError) throw scriptError;
+      }
+
       toast({ title: 'งานเสร็จสมบูรณ์! 🎉', description: 'บันทึก Script เรียบร้อยแล้ว' });
     } catch (error) {
       console.error('Error completing queue:', error);

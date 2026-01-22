@@ -11,3 +11,12 @@ export interface QueueItem {
   completedAt: Date | null;
   deadline: Date | null;
 }
+
+export interface Script {
+  id: string;
+  queueItemId: string;
+  content: string;
+  submittedBy: string;
+  version: number;
+  createdAt: Date;
+}

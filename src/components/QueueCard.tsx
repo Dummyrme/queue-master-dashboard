@@ -3,7 +3,9 @@ import { QueueItem } from '@/types/queue';
 import { Button } from '@/components/ui/button';
 import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
 import { EditQueueDialog } from '@/components/EditQueueDialog';
-import { Clock, User, Check, Trash2, Coins, ChevronDown, Hand, Pencil, CalendarClock, AlertTriangle } from 'lucide-react';
+import { SubmitScriptDialog } from '@/components/SubmitScriptDialog';
+import { ScriptDetailDialog } from '@/components/ScriptDetailDialog';
+import { Clock, User, Check, Trash2, Coins, ChevronDown, Hand, Pencil, CalendarClock, AlertTriangle, FileCode } from 'lucide-react';
 import { format, differenceInDays, isPast } from 'date-fns';
 import { th } from 'date-fns/locale';
 
@@ -32,7 +34,7 @@ export function QueueCard({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
-  const [scriptCode, setScriptCode] = useState('');
+  const [showScriptDetail, setShowScriptDetail] = useState(false);
 
   const statusConfig = {
     pending: { label: 'รอรับงาน', class: 'status-pending' },
@@ -54,6 +56,10 @@ export function QueueCard({
     if (onDelete) {
       onDelete(item.id);
     }
+  };
+
+  const handleSubmitScript = (script: string) => {
+    onComplete(item.id, script);
   };
 
   // Calculate deadline info
@@ -81,6 +87,7 @@ export function QueueCard({
   const canDelete = isAdmin;
   const canComplete = item.status === 'in-progress' && (isAdmin || isOwner);
   const canClaim = item.status === 'pending' && currentUsername;
+  const canViewScript = item.status === 'completed' && (isAdmin || isOwner);
 
   return (
     <>
@@ -193,8 +200,8 @@ export function QueueCard({
         </div>
 
         {/* Action Buttons */}
-        {(canClaim || canComplete) && (
-          <div className="mt-4 pt-4 border-t border-border/50">
+        {(canClaim || canComplete || canViewScript) && (
+          <div className="mt-4 pt-4 border-t border-border/50 flex flex-wrap gap-3">
             {canClaim && (
               <Button
                 onClick={handleClaim}
@@ -208,12 +215,24 @@ export function QueueCard({
             
             {canComplete && (
               <Button
-                onClick={() => setShowSubmitDialog(true)} // เปลี่ยนตรงนี้
+                onClick={() => setShowSubmitDialog(true)}
                 size="lg"
                 className="bg-success hover:bg-success/90 text-success-foreground transition-all duration-200 hover:scale-105"
               >
                 <Check className="w-4 h-4 mr-2" />
                 ทำเสร็จแล้ว กดส่งงาน
+              </Button>
+            )}
+
+            {canViewScript && (
+              <Button
+                onClick={() => setShowScriptDetail(true)}
+                variant="outline"
+                size="lg"
+                className="transition-all duration-200 hover:scale-105"
+              >
+                <FileCode className="w-4 h-4 mr-2" />
+                ดูรายละเอียด Script
               </Button>
             )}
           </div>
@@ -238,51 +257,21 @@ export function QueueCard({
         />
       )}
 
-      {showSubmitDialog && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4 backdrop-blur-sm animate-fade-in">
-          <div className="bg-background border border-border p-6 rounded-xl w-full max-w-lg shadow-2xl animate-scale-in">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-success/10 rounded-lg">
-                <Check className="w-6 h-6 text-success" />
-              </div>
-              <h3 className="text-xl font-bold">ยืนยันการส่งงาน</h3>
-            </div>
-            
-            <p className="text-muted-foreground text-sm mb-3">
-              ระบุ Source Code หรือรายละเอียดงานที่คุณทำสำเร็จ:
-            </p>
-            
-            <textarea 
-              className="w-full h-64 bg-secondary/50 border border-border rounded-lg p-3 text-primary font-mono text-sm focus:ring-2 focus:ring-success/50 outline-none resize-none transition-all"
-              placeholder="-- วาง Script ของคุณที่นี่ --"
-              value={scriptCode}
-              onChange={(e) => setScriptCode(e.target.value)}
-            />
+      <SubmitScriptDialog
+        open={showSubmitDialog}
+        onOpenChange={setShowSubmitDialog}
+        onSubmit={handleSubmitScript}
+        title={item.title}
+      />
 
-            <div className="flex justify-end gap-3 mt-6">
-              <Button 
-                variant="ghost" 
-                onClick={() => {
-                  setShowSubmitDialog(false);
-                  setScriptCode(''); // ล้างข้อมูลเมื่อยกเลิก
-                }}
-              >
-                ยกเลิก
-              </Button>
-              <Button 
-                onClick={() => {
-                  onComplete(item.id, scriptCode); // ส่ง id และ code กลับไป
-                  setShowSubmitDialog(false);
-                }}
-                className="bg-success hover:bg-success/90 text-success-foreground font-bold px-6"
-                disabled={!scriptCode.trim()} // ถ้าไม่ใส่โค้ดจะกดส่งไม่ได้
-              >
-                ส่งงานสำเร็จ
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ScriptDetailDialog
+        open={showScriptDetail}
+        onOpenChange={setShowScriptDetail}
+        queueItemId={item.id}
+        queueItemTitle={item.title}
+        isAdmin={isAdmin}
+        currentUsername={currentUsername}
+      />
     </>
   );
 }
